@@ -12,12 +12,16 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { AdminModule } from './admin/admin.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ServicesModule } from './services/services.module';
+import { SentryModule } from '@sentry/nestjs/setup';
+import { APP_FILTER } from '@nestjs/core';
+import { SentryGlobalFilter } from '@sentry/nestjs/setup';
 
 @Module({
   imports: [
     MongooseModule.forRoot(
       process.env.MONGODB_URI || 'mongodb://localhost:27017/on-demand-service',
     ),
+    SentryModule.forRoot(),
     AuthModule,
     UsersModule,
     ProvidersModule,
@@ -30,6 +34,12 @@ import { ServicesModule } from './services/services.module';
     ServicesModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_FILTER,
+      useClass: SentryGlobalFilter,
+    },
+  ],
 })
 export class AppModule {}
