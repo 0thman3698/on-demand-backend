@@ -188,7 +188,6 @@ export class BookingsService {
       .populate('providerId', 'name email phone')
       .populate('serviceId', 'name category')
       .sort({ createdAt: -1 });
-    console.log(bookings);
     if (!bookings) {
       throw new NotFoundException('Bookings not found');
     }

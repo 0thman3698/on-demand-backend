@@ -16,6 +16,7 @@ import { LoginDto } from './dto/login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ConfigService } from '@nestjs/config';
 
 jest.mock('bcrypt');
 jest.mock('uuid', () => ({
@@ -26,6 +27,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let userModel: any;
   let jwtService: jest.Mocked<JwtService>;
+  let configService: jest.Mocked<ConfigService>;
 
   const mockUser = {
     _id: new Types.ObjectId('507f1f77bcf86cd799439013'),
@@ -48,7 +50,9 @@ describe('AuthService', () => {
     const MockUserModel = jest.fn().mockImplementation((doc) => {
       return {
         ...doc,
-        save: jest.fn().mockResolvedValue({ ...doc, _id: new Types.ObjectId() }),
+        save: jest
+          .fn()
+          .mockResolvedValue({ ...doc, _id: new Types.ObjectId() }),
       };
     });
     MockUserModel.findOne = jest.fn();
@@ -77,11 +81,12 @@ describe('AuthService', () => {
     service = module.get<AuthService>(AuthService);
     userModel = module.get(getModelToken(User.name));
     jwtService = module.get<JwtService>(JwtService);
+    configService = module.get<ConfigService>(ConfigService);
+    jest.spyOn(configService, 'get').mockReturnValue('test');
   });
 
   afterEach(() => {
     jest.clearAllMocks();
-    process.env.NODE_ENV = 'test';
   });
 
   describe('register', () => {
@@ -97,7 +102,7 @@ describe('AuthService', () => {
       // Arrange
       userModel.findOne.mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
-      process.env.NODE_ENV = 'development';
+      configService.get<string>('NODE_ENV').mockReturnValue('development');
 
       const savedUser = {
         ...mockUser,
@@ -145,7 +150,7 @@ describe('AuthService', () => {
       // Arrange
       userModel.findOne.mockResolvedValue(null);
       (bcrypt.hash as jest.Mock).mockResolvedValue('hashedPassword');
-      process.env.NODE_ENV = 'production';
+      configService.get<string>('NODE_ENV').mockReturnValue('production');
 
       const savedUser = {
         ...mockUser,
@@ -470,7 +475,7 @@ describe('AuthService', () => {
       // Arrange
       userModel.findOne.mockResolvedValue(mockUser);
       userModel.findByIdAndUpdate.mockResolvedValue(mockUser);
-      process.env.NODE_ENV = 'development';
+      configService.get<string>('NODE_ENV').mockReturnValue('development');
 
       // Act
       const result = await service.forgotPassword(forgotPasswordDto);
@@ -498,7 +503,7 @@ describe('AuthService', () => {
       // Arrange
       userModel.findOne.mockResolvedValue(mockUser);
       userModel.findByIdAndUpdate.mockResolvedValue(mockUser);
-      process.env.NODE_ENV = 'production';
+      configService.get<string>('NODE_ENV').mockReturnValue('production');
 
       // Act
       const result = await service.forgotPassword(forgotPasswordDto);
@@ -610,4 +615,3 @@ describe('AuthService', () => {
     });
   });
 });
-

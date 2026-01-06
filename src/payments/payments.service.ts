@@ -12,10 +12,12 @@ import { BookingStatus } from '../bookings/enums/booking-status.enum';
 import { CreatePaymentIntentDto } from './dto/create-payment-intent.dto';
 import { PaymentWebhookDto } from './dto/payment-webhook.dto';
 import { User } from '../auth/schemas/user.schema';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class PaymentsService {
   constructor(
+    private configService: ConfigService,
     @InjectModel(Payment.name) private paymentModel: Model<Payment>,
     @InjectModel(Booking.name) private bookingModel: Model<Booking>,
     @InjectModel(User.name) private userModel: Model<User>,
@@ -105,7 +107,7 @@ export class PaymentsService {
       paymentIntentId,
       clientSecret,
       paymentLink,
-      provider: process.env.PAYMENT_PROVIDER || 'stripe',
+      provider: this.configService.get<string>('PAYMENT_PROVIDER') || 'stripe',
     });
 
     await payment.save();
@@ -131,7 +133,7 @@ export class PaymentsService {
       paymentWebhookDto,
     );
 
-    if (!isValidSignature && process.env.NODE_ENV !== 'development') {
+    if (!isValidSignature && this.configService.get<string>('NODE_ENV') !== 'development') {
       throw new ForbiddenException('Invalid webhook signature');
     }
 
@@ -267,7 +269,7 @@ export class PaymentsService {
     webhookData: PaymentWebhookDto,
   ): boolean {
     // In development, skip signature verification
-    if (process.env.NODE_ENV === 'development') {
+    if (this.configService.get<string>('NODE_ENV') === 'development') {
       return true;
     }
 
@@ -285,7 +287,7 @@ export class PaymentsService {
    * In production, this would come from payment gateway API
    */
   private generatePaymentIntentId(): string {
-    const prefix = process.env.PAYMENT_PROVIDER || 'stripe';
+    const prefix = this.configService.get<string>('PAYMENT_PROVIDER') || 'stripe';
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 15);
     return `${prefix}_pi_${timestamp}_${random}`;
@@ -304,7 +306,7 @@ export class PaymentsService {
    * In production, this would come from payment gateway API
    */
   private generatePaymentLink(paymentIntentId: string): string {
-    const baseUrl = process.env.APP_URL || 'http://localhost:3000';
+    const baseUrl = this.configService.get<string>('APP_URL') || 'http://localhost:3000';
     return `${baseUrl}/payments/confirm/${paymentIntentId}`;
   }
 

@@ -16,6 +16,7 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { v4 as uuidv4 } from 'uuid';
+import { ConfigService } from '@nestjs/config';
 
 type VerifyOtpUpdate = {
   otpCode: null;
@@ -29,6 +30,7 @@ export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private jwtService: JwtService,
+    private configService: ConfigService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -73,7 +75,10 @@ export class AuthService {
       message: 'Registration successful. Please verify your account with OTP.',
       userId: user._id,
       // Remove this in production - OTP should be sent via email/SMS
-      otpCode: process.env.NODE_ENV === 'development' ? otpCode : undefined,
+      otpCode:
+        this.configService.get<string>('NODE_ENV') === 'development'
+          ? otpCode
+          : undefined,
     };
   }
 
@@ -180,7 +185,7 @@ export class AuthService {
   async refreshToken(refreshToken: string) {
     try {
       const payload = this.jwtService.verify<{ sub: string }>(refreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret',
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       });
 
       const user = await this.userModel.findById(payload.sub);
@@ -240,7 +245,9 @@ export class AuthService {
       message: 'If an account exists, a password reset link has been sent.',
       // Remove this in production
       resetToken:
-        process.env.NODE_ENV === 'development' ? resetToken : undefined,
+        this.configService.get<string>('NODE_ENV') === 'development'
+          ? resetToken
+          : undefined,
     };
   }
 
@@ -288,10 +295,10 @@ export class AuthService {
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
-        secret: process.env.JWT_SECRET || 'jwt-secret',
+        secret: this.configService.get<string>('JWT_SECRET'),
       }),
       this.jwtService.signAsync(payload, {
-        secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret',
+        secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       }),
     ]);
 

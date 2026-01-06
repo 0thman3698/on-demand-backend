@@ -1,8 +1,9 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
+import { ExtractJwt, Strategy, StrategyOptionsWithRequest } from 'passport-jwt';
 import { Request } from 'express';
 import { AuthService } from '../auth.service';
+import { ConfigService } from '@nestjs/config';
 
 export interface JwtRefreshPayload {
   sub: string;
@@ -15,20 +16,31 @@ export class JwtRefreshStrategy extends PassportStrategy(
   Strategy,
   'jwt-refresh',
 ) {
-  constructor(private authService: AuthService) {
-    super({
-      jwtFromRequest: (req: Request) => {
-        // Try to get token from body first, then from header
-        return req.body?.refreshToken || ExtractJwt.fromAuthHeaderAsBearerToken()(req);
-      },
+  constructor(
+    private authService: AuthService,
+    private configService: ConfigService,
+  ) {
+    const jwtRefreshSecret = configService.get<string>('JWT_REFRESH_SECRET');
+    if (!jwtRefreshSecret) {
+      throw new Error('JWT_REFRESH_SECRET is not defined');
+    }
+
+    const options: StrategyOptionsWithRequest = {
+      jwtFromRequest: (req: Request) =>
+        (req.body?.refreshToken as string) ||
+        (ExtractJwt.fromAuthHeaderAsBearerToken()(req) as string),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_REFRESH_SECRET || 'refresh-secret',
+      secretOrKey: jwtRefreshSecret,
       passReqToCallback: true,
-    });
+    };
+
+    super(options);
   }
 
   async validate(req: Request, payload: JwtRefreshPayload) {
-    const refreshToken = req.body?.refreshToken;
+    const refreshToken =
+      (req.body?.refreshToken as string) ||
+      (ExtractJwt.fromAuthHeaderAsBearerToken()(req) as string);
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token is required');
     }
@@ -45,4 +57,3 @@ export class JwtRefreshStrategy extends PassportStrategy(
     };
   }
 }
-

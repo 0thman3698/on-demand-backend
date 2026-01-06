@@ -15,9 +15,12 @@ import { ServicesModule } from './services/services.module';
 import { SentryModule } from '@sentry/nestjs/setup';
 import { APP_FILTER } from '@nestjs/core';
 import { SentryGlobalFilter } from '@sentry/nestjs/setup';
+import { ConfigModule } from '@nestjs/config';
+import { configOptions } from './config/env.config';
 
 @Module({
   imports: [
+    ConfigModule.forRoot(configOptions),
     MongooseModule.forRoot(
       process.env.MONGODB_URI || 'mongodb://localhost:27017/on-demand-service',
     ),
