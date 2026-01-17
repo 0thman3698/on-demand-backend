@@ -1,23 +1,81 @@
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy, Profile } from 'passport-google-oauth20';
+import { Strategy } from 'passport-google-oauth20';
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+
+interface GoogleProfile {
+  id: string;
+  emails?: Array<{ value: string; verified?: boolean }>;
+  displayName?: string;
+  name?: {
+    givenName?: string;
+    familyName?: string;
+  };
+  photos?: Array<{ value: string }>;
+}
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
-  constructor() {
+  constructor(private configService: ConfigService) {
+    const clientID = configService.get<string>('GOOGLE_CLIENT_ID');
+    const clientSecret = configService.get<string>('GOOGLE_CLIENT_SECRET');
+
+    if (!clientID || !clientSecret) {
+      throw new Error(
+        'GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be defined',
+      );
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     super({
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: 'http://localhost:3000/auth/google/callback',
+      clientID,
+      clientSecret,
+      callbackURL:
+        configService.get<string>('GOOGLE_CALLBACK_URL') ||
+        'http://localhost:3000/auth/google/callback',
       scope: ['email', 'profile'],
     });
   }
 
-  async validate(accessToken: string, refreshToken: string, profile: Profile) {
+  validate(
+    accessToken: string,
+    refreshToken: string,
+    profile: GoogleProfile,
+  ): {
+    email: string;
+    name: string;
+    picture?: string;
+    googleId: string;
+    provider: string;
+  } {
+    if (!profile || !profile.id) {
+      throw new Error('Invalid Google profile');
+    }
+
+    const email =
+      profile.emails && profile.emails.length > 0
+        ? profile.emails[0].value
+        : undefined;
+    const name =
+      profile.displayName ||
+      (profile.name?.givenName && profile.name?.familyName
+        ? `${profile.name.givenName} ${profile.name.familyName}`
+        : profile.name?.givenName) ||
+      'User';
+    const picture =
+      profile.photos && profile.photos.length > 0
+        ? profile.photos[0].value
+        : undefined;
+    const googleId = profile.id;
+
+    if (!email) {
+      throw new Error('Email is required from Google profile');
+    }
+
     return {
-      email: profile.emails[0].value,
-      name: profile.displayName,
-      picture: profile.photos[0].value,
+      email,
+      name,
+      picture,
+      googleId,
       provider: 'google',
     };
   }
