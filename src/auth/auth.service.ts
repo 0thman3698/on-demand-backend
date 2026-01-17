@@ -9,7 +9,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { User, UserRole } from './schemas/user.schema';
+import { AuthProvider, User, UserRole } from './schemas/user.schema';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -104,7 +104,7 @@ export class AuthService {
     }
 
     // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password || '');
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -275,6 +275,30 @@ export class AuthService {
 
     return {
       message: 'Password reset successfully',
+    };
+  }
+
+  async googleLogin(user: { email: string; name: string; googleId: string }) {
+    let dbUser = await this.userModel.findOne({ email: user.email });
+    if (!dbUser) {
+      dbUser = new this.userModel({
+        email: user.email,
+        name: user.name,
+        provider: AuthProvider.GOOGLE,
+        googleId: user.googleId,
+        isEmailVerified: true,
+      });
+      await dbUser.save();
+    }
+    const tokens = await this.generateTokens(dbUser);
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: {
+        id: dbUser._id,
+        name: dbUser.name,
+        email: dbUser.email,
+      },
     };
   }
 

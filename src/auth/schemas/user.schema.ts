@@ -7,6 +7,13 @@ export enum UserRole {
   ADMIN = 'ADMIN',
 }
 
+export enum AuthProvider {
+  LOCAL = 'LOCAL',
+  GOOGLE = 'GOOGLE',
+  FACEBOOK = 'FACEBOOK',
+  APPLE = 'APPLE',
+}
+
 @Schema({ timestamps: true })
 export class User extends Document {
   @Prop({ required: true })
@@ -18,8 +25,21 @@ export class User extends Document {
   @Prop({ required: false, unique: true, sparse: true })
   phone?: string;
 
-  @Prop({ required: true })
-  password: string;
+  // 🔥 المهم هنا
+  @Prop({
+    required: function () {
+      return this.provider === AuthProvider.LOCAL;
+    },
+    select: false,
+  })
+  password?: string;
+
+  @Prop({
+    type: String,
+    enum: AuthProvider,
+    default: AuthProvider.LOCAL,
+  })
+  provider: AuthProvider;
 
   @Prop({ type: String, enum: UserRole, default: UserRole.USER })
   role: UserRole;
@@ -48,7 +68,7 @@ export class User extends Document {
   @Prop({ required: false })
   refreshToken?: string;
 
-  // Social login fields
+  // ✅ Social IDs
   @Prop({ required: false })
   googleId?: string;
 
